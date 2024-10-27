@@ -34,7 +34,7 @@ const path = {
 	},
 	src: {
 		js: './src/js/main.js',
-		css: './src/sass/*.sass',
+		css: './src/scss/*.scss',
 		html: './src/*.html',
 		img: './src/img/**/*.{jpg,jpeg,png,gif,webp}',
 		svg: './src/svg/*.svg',
@@ -43,8 +43,8 @@ const path = {
 	},
 	watch: {
 		js: './src/js/**/*.js',
-		css: './src/sass/**/*.sass',
-		html: './src/**/*.html',
+		css: './src/scss/**/*.scss',
+		html: './src/*.html',
 		img: './src/img/**/*.*',
 		svg: '.src/svg/*.svg',
 		fonts: './src/fonts/*.*',
