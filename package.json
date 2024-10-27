@@ -1,0 +1,27 @@
+{
+  "name": "gulp-template-for-frontend-2024",
+  "version": "1.0.0",
+  "description": "The latest Gulp build for frontend development",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AbaevB/Gulp-template-for-frontend-2024.git"
+  },
+  "keywords": [
+    "gulp",
+    "sass",
+    "js",
+    "css",
+    "frontend",
+    "layout"
+  ],
+  "author": "Andrew Baew",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AbaevB/Gulp-template-for-frontend-2024/issues"
+  },
+  "homepage": "https://github.com/AbaevB/Gulp-template-for-frontend-2024#readme"
+}
