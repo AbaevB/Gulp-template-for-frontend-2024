@@ -24,11 +24,12 @@
     "url": "https://github.com/AbaevB/Gulp-template-for-frontend-2024/issues"
   },
   "homepage": "https://github.com/AbaevB/Gulp-template-for-frontend-2024#readme",
-    "type": "module",
+  "type": "module",
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/preset-env": "^7.26.0",
     "browser-sync": "^3.0.3",
+    "chalk": "^4.1.1",
     "del": "^8.0.0",
     "fs": "^0.0.1-security",
     "gulp": "^5.0.0",

@@ -21,20 +21,22 @@ import webp from 'gulp-webp';
 import gulpIf from 'gulp-if';
 import ttf2woff from 'gulp-ttf2woff';
 import ttf2woff2 from 'gulp-ttf2woff2';
+import chalk from 'chalk';
+import fs from 'fs';
 
 const path = {
 	build: {
-		js: './dist/js/',
-		css: './dist/css/',
-		html: './dist/',
-		img: './dist/img/',
-		svg: './dist/img',
-		fonts: './dist/fonts/',
-		libs: './dist/libs/',
+		js: './build/js/',
+		css: './build/css/',
+		html: './build/',
+		img: './build/img/',
+		svg: './build/img',
+		fonts: './build/fonts/',
+		libs: './build/libs/',
 	},
 	src: {
 		js: './src/js/main.js',
-		css: './src/scss/*.scss',
+		css: './src/scss/**/*.scss',
 		html: './src/*.html',
 		img: './src/img/**/*.{jpg,jpeg,png,gif,webp}',
 		svg: './src/svg/*.svg',
@@ -44,7 +46,7 @@ const path = {
 	watch: {
 		js: './src/js/**/*.js',
 		css: './src/scss/**/*.scss',
-		html: './src/*.html',
+		html: './src/**/*.html',
 		img: './src/img/**/*.*',
 		svg: '.src/svg/*.svg',
 		fonts: './src/fonts/*.*',
@@ -68,7 +70,7 @@ function js() {
 
 function minifyJs(){
 	return gulp
-		.src('dist/js/main.js')
+		.src('build/js/main.js')
 		.pipe(uglify())
 		.pipe(rename({ suffix: '.min' }))
 		.pipe(gulp.dest(path.build.js))
@@ -80,7 +82,18 @@ function style() {
 		.pipe(plumber())
 		.pipe(sourcemaps.init())
 		.pipe(sass().on('error', sass.logError)) 
-		.pipe(autoprefixer()) 
+		.pipe(autoprefixer({
+			overrideBrowserslist: ['last 8 versions'],
+      browsers: [
+        'Android >= 4',
+        'Chrome >= 20',
+        'Firefox >= 24',
+        'Explorer >= 11',
+        'iOS >= 6',
+        'Opera >= 12',
+        'Safari >= 6',
+      ],
+		})) 
 		.pipe(sourcemaps.write())
 		.pipe(gulp.dest(path.build.css)) 
 		.pipe(browsersync.stream()); 
@@ -88,7 +101,7 @@ function style() {
 
 function minifyCSS() {
 	return gulp
-		.src('dist/css/style.css')
+		.src('build/css/style.css')
 		.pipe(cleanCSS()) 
 		.pipe(rename({ suffix: '.min' })) 
 		.pipe(gulp.dest(path.build.css)) 
@@ -137,13 +150,13 @@ function svg() {
 }
 
 function clean() {
-	return del('./dist');
+	return del('./build');
 }
 
 function server() {
 	browsersync.init({
 		server: {
-			baseDir: './dist/'
+			baseDir: './build/'
 		},
 		notify: false, 
 		port: 3000
@@ -164,6 +177,41 @@ function ttfToWoff2() {
 		.pipe(gulp.dest(path.build.fonts)); 
 }
 
+//fontFace
+let srcFonts = 'src/scss/_local-fonts.scss';
+let appFonts = 'build/fonts/';
+
+function fontFace(done) {
+	fs.writeFile(srcFonts, '', () => {});
+	fs.readdir(appFonts, (err, items) => {
+	  if (items) {
+		let c_fontname;
+		for (let i = 0; i < items.length; i++) {
+		  let fontname = items[i].split('.'),
+			fontExt;
+		  fontExt = fontname[1];
+		  fontname = fontname[0];
+		  if (c_fontname != fontname) {
+			if (fontExt == 'woff' || fontExt == 'woff2') {
+			  fs.appendFile(srcFonts, `@include font-face("${fontname}", "${fontname}", 400);\r\n`, () => {});
+			  console.log(chalk `
+  {bold {bgGray Added new font: ${fontname}.}
+  ----------------------------------------------------------------------------------
+  {bgYellow.black Please, move mixin call from {cyan src/scss/_local-fonts.scss} to {cyan src/scss/global/_fonts.scss} and then change it!}}
+  ----------------------------------------------------------------------------------
+  `);
+			}
+		  }
+		  c_fontname = fontname;
+		}
+	  }
+	})
+	done();
+  }
+
+
+//fontFace
+
 function watchFiles() {
 	gulp.watch(path.watch.libs, libs); 
 	gulp.watch(path.watch.html, html);
@@ -173,11 +221,11 @@ function watchFiles() {
 	gulp.watch(path.watch.img, img);
 }
 
-const fonts = gulp.series(ttfToWoff, ttfToWoff2);
-const mainTasks = gulp.series(clean, gulp.parallel(html, fonts, libs, style, js, img, svg));
+const fonts = gulp.series(ttfToWoff, ttfToWoff2, fontFace);
+const mainTasks = gulp.series(clean, gulp.parallel(html, fonts, fontFace, libs, style, js, img, svg));
 const dev = gulp.series(mainTasks, gulp.parallel(watchFiles, server));
 
-const build = gulp.series(clean, gulp.parallel(html, libs, style, js, img, fonts, svg), minifyCSS, minifyJs);
+const build = gulp.series(clean, gulp.parallel(html, libs, style, js, img, fonts, fontFace, svg), minifyCSS, minifyJs);
 
 gulp.task('svg', svg);
 gulp.task('default', dev);
