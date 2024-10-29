@@ -17,26 +17,30 @@ import { deleteAsync as del } from 'del';
 import fileInclude from 'gulp-file-include';
 import multiDest from 'gulp-multi-dest';
 import changed from 'gulp-changed';
-import webp from 'gulp-webp';
+import webpConv from 'gulp-webp';
 import gulpIf from 'gulp-if';
 import ttf2woff from 'gulp-ttf2woff';
 import ttf2woff2 from 'gulp-ttf2woff2';
+import chalk from 'chalk';
+import fs from 'fs';
 
 const path = {
 	build: {
-		js: './dist/js/',
-		css: './dist/css/',
-		html: './dist/',
-		img: './dist/img/',
-		svg: './dist/img',
-		fonts: './dist/fonts/',
-		libs: './dist/libs/',
+		js: './build/js/',
+		css: './build/css/',
+		html: './build/',
+		img: './build/img/',
+		webp: './build/img/',
+		svg: './build/img',
+		fonts: './build/fonts/',
+		libs: './build/libs/',
 	},
 	src: {
 		js: './src/js/main.js',
-		css: './src/scss/*.scss',
+		css: './src/scss/**/*.scss',
 		html: './src/*.html',
 		img: './src/img/**/*.{jpg,jpeg,png,gif,webp}',
+		webp: './src/img/**/*.{jpg,jpeg,png,gif}',
 		svg: './src/svg/*.svg',
 		fonts: './src/fonts/*.{ttf,otf}',
 		libs: './src/libs/**/*.*',
@@ -44,9 +48,9 @@ const path = {
 	watch: {
 		js: './src/js/**/*.js',
 		css: './src/scss/**/*.scss',
-		html: './src/*.html',
+		html: './src/**/*.html',
 		img: './src/img/**/*.*',
-		svg: '.src/svg/*.svg',
+		svg: './src/svg/*.svg',
 		fonts: './src/fonts/*.*',
 		libs: './src/libs/**/*.*',
 	}
@@ -68,7 +72,7 @@ function js() {
 
 function minifyJs(){
 	return gulp
-		.src('dist/js/main.js')
+		.src(`${path.build.js}main.js`)
 		.pipe(uglify())
 		.pipe(rename({ suffix: '.min' }))
 		.pipe(gulp.dest(path.build.js))
@@ -80,7 +84,18 @@ function style() {
 		.pipe(plumber())
 		.pipe(sourcemaps.init())
 		.pipe(sass().on('error', sass.logError)) 
-		.pipe(autoprefixer()) 
+		.pipe(autoprefixer({
+			overrideBrowserslist: ['last 8 versions'],
+      browsers: [
+        'Android >= 4',
+        'Chrome >= 20',
+        'Firefox >= 24',
+        'Explorer >= 11',
+        'iOS >= 6',
+        'Opera >= 12',
+        'Safari >= 6',
+      ],
+		})) 
 		.pipe(sourcemaps.write())
 		.pipe(gulp.dest(path.build.css)) 
 		.pipe(browsersync.stream()); 
@@ -88,7 +103,7 @@ function style() {
 
 function minifyCSS() {
 	return gulp
-		.src('dist/css/style.css')
+		.src(`${path.build.css}style.css`)
 		.pipe(cleanCSS()) 
 		.pipe(rename({ suffix: '.min' })) 
 		.pipe(gulp.dest(path.build.css)) 
@@ -120,6 +135,31 @@ async function img() {
 		.pipe(browsersync.stream()) 
 }
 
+
+
+const isImageFile = (file) => {
+    return file.extname === '.jpg' || file.extname === '.jpeg' || file.extname === '.png';
+};
+
+async function webp() {
+    const { default: webp } = await import('gulp-webp');
+
+    return gulp
+        .src(path.src.webp)
+        .pipe(plumber())
+		.pipe(changed('build/img', { extension: '.webp' }))
+        .pipe(gulpIf(isImageFile, webp({ quality: 75 }))) // Установите качество
+        
+        .pipe(multiDest(['src/img', 'build/img']));
+}
+
+export { webp };
+
+
+
+
+
+
 function svg() {
 	return gulp
 		.src(path.src.svg)
@@ -137,13 +177,13 @@ function svg() {
 }
 
 function clean() {
-	return del('./dist');
+	return del('./build');
 }
 
 function server() {
 	browsersync.init({
 		server: {
-			baseDir: './dist/'
+			baseDir: './build/'
 		},
 		notify: false, 
 		port: 3000
@@ -164,20 +204,63 @@ function ttfToWoff2() {
 		.pipe(gulp.dest(path.build.fonts)); 
 }
 
+
+let srcFonts = 'src/scss/_local-fonts.scss';
+let appFonts = 'build/fonts/';
+
+async function fontFace(done) {
+    try {
+        fs.writeFileSync(srcFonts, '');
+
+        const items = await fs.promises.readdir(appFonts);
+
+        let c_fontname;
+
+        for (const item of items) {
+            const [fontname, fontExt] = item.split('.');
+            if (fontExt === 'woff' || fontExt === 'woff2') {
+                if (c_fontname !== fontname) {
+                    const fontFaceString = `@include font-face("${fontname}", "${fontname}", 400);\r\n`;
+                    fs.appendFileSync(srcFonts, fontFaceString); 
+
+                    
+                    console.log(chalk`
+  {bold {bgGray Added new font: ${fontname}.}
+  ----------------------------------------------------------------------------------
+  {bgYellow.black Please, move mixin call from {cyan src/scss/_local-fonts.scss} to {cyan src/scss/global/_fonts.scss} and then change it!}}
+  ----------------------------------------------------------------------------------`);
+                }
+            }
+            c_fontname = fontname; 
+        }
+
+        done(); 
+    } catch (err) {
+        console.error(chalk.red('Error while processing fonts:'), err);
+        done(err); 
+    }
+}
+
+
+
+//fontFace
+
 function watchFiles() {
 	gulp.watch(path.watch.libs, libs); 
 	gulp.watch(path.watch.html, html);
 	gulp.watch(path.watch.fonts, fonts);
 	gulp.watch(path.watch.css, style);
 	gulp.watch(path.watch.js, js);
-	gulp.watch(path.watch.img, img);
+	gulp.watch(path.watch.img, images);
 }
 
-const fonts = gulp.series(ttfToWoff, ttfToWoff2);
-const mainTasks = gulp.series(clean, gulp.parallel(html, fonts, libs, style, js, img, svg));
+const fonts = gulp.series(ttfToWoff, ttfToWoff2, fontFace);
+const images = gulp.series(img, webp);
+const mainTasks = gulp.series(clean, gulp.parallel(html, fonts, libs, style, js, images, svg));
 const dev = gulp.series(mainTasks, gulp.parallel(watchFiles, server));
 
-const build = gulp.series(clean, gulp.parallel(html, libs, style, js, img, fonts, svg), minifyCSS, minifyJs);
+
+const build = gulp.series(clean, gulp.parallel(html, libs, style, js, images, fonts, svg), minifyCSS, minifyJs);
 
 gulp.task('svg', svg);
 gulp.task('default', dev);
